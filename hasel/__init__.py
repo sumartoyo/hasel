@@ -1,9 +1,10 @@
 import numpy as np
 import threading
 import multiprocessing
+import math
 
 def rgb2hsl(rgb):
-    
+
     def core(_rgb, _hsl):
 
         irgb = _rgb.astype(np.uint16)
@@ -17,7 +18,7 @@ def rgb2hsl(rgb):
         lbot = (iadd != 0) * (ltop == False)
 
         l[:] = iadd.astype(np.float) / 510
-        
+
         fsub = isub.astype(np.float)
         s[ltop] = fsub[ltop] / (510 - iadd[ltop])
         s[lbot] = fsub[lbot] / iadd[lbot]
@@ -33,14 +34,14 @@ def rgb2hsl(rgb):
         h[is_b_max] = ((0. + ir[is_b_max] - ig[is_b_max]) / isub[is_b_max]) + 4
         h[h < 0] += 6
         h[:] /= 6
-    
+
     hsl = np.zeros(rgb.shape, dtype=np.float)
     cpus = multiprocessing.cpu_count()
-    length = hsl.shape[0] / cpus
+    length = int(math.ceil(float(hsl.shape[0]) / cpus))
     line = 0
     threads = []
-    for i in range(0, cpus):
-        line_next = line+length if i < cpus-1 else hsl.shape[0]
+    while line < hsl.shape[0]:
+        line_next = line + length
         thread = threading.Thread(target=core, args=(rgb[line:line_next], hsl[line:line_next]))
         thread.start()
         threads.append(thread)
@@ -54,7 +55,7 @@ def rgb2hsl(rgb):
 def hsl2rgb(hsl):
 
     def core(_hsl, _frgb):
-        
+
         h, s, l = _hsl[:, :, 0], _hsl[:, :, 1], _hsl[:, :, 2]
         fr, fg, fb = _frgb[:, :, 0], _frgb[:, :, 1], _frgb[:, :, 2]
 
@@ -77,7 +78,7 @@ def hsl2rgb(hsl):
         two_per_3 = 2./3
 
         def calc_channel(channel, t):
-            
+
             t[t < 0] += 1
             t[t > 1] -= 1
             t_lt_per_6 = t < per_6
@@ -94,14 +95,14 @@ def hsl2rgb(hsl):
         calc_channel(fr, h + per_3)
         calc_channel(fg, h.copy())
         calc_channel(fb, h - per_3)
-    
+
     frgb = np.zeros(hsl.shape, dtype=np.float)
     cpus = multiprocessing.cpu_count()
-    length = hsl.shape[0] / cpus
+    length = int(math.ceil(float(hsl.shape[0]) / cpus))
     line = 0
     threads = []
-    for i in range(0, cpus):
-        line_next = line+length if i < cpus-1 else hsl.shape[0]
+    while line < hsl.shape[0]:
+        line_next = line + length
         thread = threading.Thread(target=core, args=(hsl[line:line_next], frgb[line:line_next]))
         thread.start()
         threads.append(thread)
